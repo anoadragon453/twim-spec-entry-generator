@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from github import Github
 from github.Issue import Issue
+from github.Repository import Repository
+import plotly.graph_objects as go
 
 # TODO:
 # - Paste in Spec Core Team focus and have links generated for each MSC
@@ -9,22 +11,18 @@ from github.Issue import Issue
 TEXT = """
 # Spec
 
-Here's your weekly spec update! The heart of Matrix is the specification - and this is
-modified by Matrix Spec Change (MSC) proposals. Learn more about how the process works
-at https://matrix.org/docs/spec/proposals.
+Here's your weekly spec update! The heart of Matrix is the specification - and this is modified by Matrix Spec Change (MSC) proposals. Learn more about how the process works at https://matrix.org/docs/spec/proposals.
+
 
 ## MSC Status
 
 **Merged MSCs:**
-
 {merged_mscs}
 
 **MSCs in Final Comment Period:**
-
 {mscs_in_fcp}
 
 **New MSCs:**
-
 {new_mscs}
 
 ## Spec Core Team
@@ -54,7 +52,7 @@ def main():
     )
     merged_mscs = r.get_issues(
         state="closed",
-        labels=["proposal", "finished-final-comment-period", "disposition:merge"],
+        labels=["proposal", "finished-final-comment-period", "disposition-merge"],
         since=one_week_ago,
     )
 
@@ -101,6 +99,9 @@ def main():
     )
     print(update_text)
 
+    # Generate a pie chart of MSC progress
+    generate_msc_pie_chart(r)
+
 
 def get_disposition(msc: Issue) -> str:
     """Returns the textual representation of the disposition of a MSC"""
@@ -112,6 +113,53 @@ def get_disposition(msc: Issue) -> str:
             if disposition in label.name:
                 return disposition
 
+
+def generate_msc_pie_chart(r: Repository):
+    # Get total number of {closed, open, merged, postponed, fcp} MSCs
+    fcp_mscs = r.get_issues(
+        state="open",
+        labels=["proposal", "final-comment-period"],
+    ).totalCount
+    open_mscs = r.get_issues(state="open", labels=["proposal"]).totalCount - fcp_mscs
+    closed_mscs = r.get_issues(
+        state="closed",
+        labels=["proposal", "rejected"],
+    ).totalCount
+    postponed_mscs = r.get_issues(
+        state="open",
+        labels=["proposal", "finished-final-comment-period", "disposition-postpone"],
+    ).totalCount
+    merged_mscs = r.get_issues(
+        state="closed",
+        labels=["proposal"],
+    ).totalCount - closed_mscs - postponed_mscs
+
+    # Create the pie chart
+    colors = ["blue", "gold", "mediumturquoise", "darkorange", "lightgreen"]
+    fig = go.Figure(
+        data=[go.Pie(
+            labels=["Open", "Merged", "FCP", "Closed", "Postponed"],
+            values=[open_mscs, merged_mscs, fcp_mscs, closed_mscs, postponed_mscs],
+        )]
+    )
+    # Make a nice title
+    fig.update_layout(
+        title={
+            'text': "Matrix Spec Change Proposals",
+            'y': 0.95,
+            'x': 0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+        },
+        font=dict(
+            family="Arial",
+            size=18,
+            color="#222222",
+        )
+    )
+    fig.update_traces(hoverinfo="label+percent", textinfo="value", textfont_size=20,
+                      marker=dict(colors=colors, line=dict(color="#000000", width=2)))
+    fig.write_image("plot.png")
 
 if __name__ == '__main__':
     main()
