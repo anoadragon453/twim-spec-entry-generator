@@ -91,7 +91,7 @@ def main():
             text += f"* [{msc.title}]({msc.html_url})\n"
         merged_mscs = text.strip()
     else:
-        merged_mscs = "* *No MSCs entered FCP this week.*"
+        merged_mscs = "* *No MSCs were merged this week.*"
 
     # Replace placeholders in template
     update_text = TEXT.format(
