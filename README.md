@@ -2,6 +2,11 @@
 
 Generates Spec entries for TWIM!
 
+## Config
+
+Put your access token into the `g = Github("")` line for now.
+I know it's horrible.
+
 ## Install
 
 ```sh
