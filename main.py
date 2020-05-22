@@ -142,25 +142,20 @@ def generate_msc_pie_chart(r: Repository):
     ).totalCount - closed_mscs - postponed_mscs
 
     # Create the pie chart
-    colors = ["#28a745", "#6f42c1", "yellow", "#ce303d", "grey"]
-    labels_and_values = {
-        "Open": open_mscs,
-        "Merged": merged_mscs,
-        "FCP": fcp_mscs,
-        "Closed": closed_mscs,
-        "Postponed": postponed_mscs,
-    }
+    labels = ["Open", "Merged", "Closed", "FCP", "Postponed"]
+    colors = ["#28a745", "#6f42c1", "#ce303d", "yellow", "grey"]
+    values = [open_mscs, merged_mscs, closed_mscs, fcp_mscs, postponed_mscs]
 
     # Add the respective count to each label
-    for key, value in labels_and_values.copy().items():
-        labels_and_values.pop(key)
-        labels_and_values[f"{key} ({value})"] = value
+    for idx, label in enumerate(labels):
+        labels[idx] = f"{label} ({values[idx]})"
 
     fig = go.Figure(
         data=[go.Pie(
-            labels=list(labels_and_values.keys()),
-            values=list(labels_and_values.values()),
-        )]
+            labels=labels,
+            values=values,
+            sort=False,  # Use order of lists above instead of sorting by size
+        )],
     )
     # Make a nice title
     fig.update_layout(
@@ -175,7 +170,7 @@ def generate_msc_pie_chart(r: Repository):
             family="Arial",
             size=18,
             color="#222222",
-        )
+        ),
     )
     fig.update_traces(hoverinfo="label+percent", textinfo="value", textfont_size=20,
                       marker=dict(colors=colors, line=dict(color="#000000", width=2)))
