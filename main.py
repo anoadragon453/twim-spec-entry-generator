@@ -143,10 +143,23 @@ def generate_msc_pie_chart(r: Repository):
 
     # Create the pie chart
     colors = ["#28a745", "#6f42c1", "yellow", "#ce303d", "grey"]
+    labels_and_values = {
+        "Open": open_mscs,
+        "Merged": merged_mscs,
+        "FCP": fcp_mscs,
+        "Closed": closed_mscs,
+        "Postponed": postponed_mscs,
+    }
+
+    # Add the respective count to each label
+    for key, value in labels_and_values.copy().items():
+        labels_and_values.pop(key)
+        labels_and_values[f"{key} ({value})"] = value
+
     fig = go.Figure(
         data=[go.Pie(
-            labels=["Open", "Merged", "FCP", "Closed", "Postponed"],
-            values=[open_mscs, merged_mscs, fcp_mscs, closed_mscs, postponed_mscs],
+            labels=list(labels_and_values.keys()),
+            values=list(labels_and_values.values()),
         )]
     )
     # Make a nice title
