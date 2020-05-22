@@ -142,7 +142,7 @@ def generate_msc_pie_chart(r: Repository):
     ).totalCount - closed_mscs - postponed_mscs
 
     # Create the pie chart
-    colors = ["blue", "gold", "mediumturquoise", "darkorange", "lightgreen"]
+    colors = ["#28a745", "#6f42c1", "yellow", "#ce303d", "grey"]
     fig = go.Figure(
         data=[go.Pie(
             labels=["Open", "Merged", "FCP", "Closed", "Postponed"],
