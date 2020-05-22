@@ -48,21 +48,28 @@ def main():
     mscs_in_fcp = r.get_issues(
         state="open",
         labels=["proposal", "final-comment-period"],
-        since=one_week_ago,
     )
-    merged_mscs = r.get_issues(
+    closed_mscs = list(r.get_issues(
         state="closed",
-        labels=["proposal", "finished-final-comment-period", "disposition-merge"],
+        labels=["proposal", "rejected"],
+    ))
+    postponed_mscs = list(r.get_issues(
+        state="open",
+        labels=["proposal", "finished-final-comment-period", "disposition-postpone"],
+    ))
+    merged_mscs = [msc for msc in r.get_issues(
+        state="closed",
+        labels=["proposal"],
         since=one_week_ago,
-    )
+    ) if msc not in closed_mscs and msc not in postponed_mscs]
 
     # The since= parameter above allows MSCs in that were commented on less than
-    # one week ago, so we do some further filtering here
-    # this has the advantage of converting the PaginatedLists we get from the
+    # one week ago, so we do some further filtering here.
+    # This has the advantage of converting the PaginatedLists we get from the
     # Github module into normal ol' Lists
     new_mscs = [msc for msc in new_mscs if msc.created_at > one_week_ago]
-    mscs_in_fcp = [msc for msc in mscs_in_fcp if msc.created_at > one_week_ago]
-    merged_mscs = [msc for msc in merged_mscs if msc.created_at > one_week_ago]
+    mscs_in_fcp = [msc for msc in mscs_in_fcp]
+    merged_mscs = [msc for msc in merged_mscs if msc.closed_at > one_week_ago]
 
     # Convert MSC lists into text for the update
     if new_mscs:
@@ -81,7 +88,7 @@ def main():
             text += f"* [{msc.title}]({msc.html_url}) ({disposition})\n"
         mscs_in_fcp = text.strip()
     else:
-        mscs_in_fcp = "* *No MSCs entered FCP this week.*"
+        mscs_in_fcp = "* *No MSCs are in FCP.*"
 
     if merged_mscs:
         text = ""
