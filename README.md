@@ -4,7 +4,7 @@ Generates Spec entries for TWIM!
 
 ## Config
 
-Put your access token into the `g = Github("")` line for now.
+Put your access token into the `github_token = ""` line for now.
 I know it's horrible.
 
 ## Install

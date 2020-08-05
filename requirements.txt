@@ -4,3 +4,4 @@ plotly>=4.7.1
 pandas>=1.0.3
 psutil>=5.7.0
 progress>=1.5
+msc-chart-generator>=0.0.1
