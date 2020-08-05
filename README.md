@@ -1,6 +1,8 @@
 # TWIM Spec Entry Generator
 
-Generates Spec entries for TWIM!
+Generates Spec entries for TWIM! Makes use of the
+[msc-chart-generator](https://github.com/anoadragon453/msc-chart-generator)
+library to generate chart images.
 
 ## Config
 
