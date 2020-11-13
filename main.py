@@ -1,11 +1,9 @@
+import re
 from datetime import datetime, timedelta
 from github import Github
 from github.Issue import Issue
 from msc_chart_generator.msc_chart import MSCChart, ChartType
 
-# TODO:
-# - Paste in Spec Core Team focus and have links generated for each MSC
-#   entry automatically
 
 TEXT = """
 # Spec
@@ -25,16 +23,16 @@ Here's your weekly spec update! The heart of Matrix is the specification - and t
 {new_mscs}
 
 ## Spec Core Team
-
-In terms of Spec Core Team MSC focus for this week,
 """
 
 
 def main():
+    github_repo = "matrix-org/matrix-doc"
     github_token = ""
     g = Github(github_token)
-    r = g.get_repo("matrix-org/matrix-doc")
+    r = g.get_repo(github_repo)
     msc_chart = MSCChart(pygithub=g)
+    msc_url_regex = re.compile(r"MSC([\d]{3,4})", re.IGNORECASE)
 
     one_week_ago = datetime.now() - timedelta(days=7)
 
@@ -103,6 +101,20 @@ def main():
         mscs_in_fcp=mscs_in_fcp,
         merged_mscs=merged_mscs,
     )
+
+    # Automatically replace MSCXXXX links in the Spec Core Team focus
+    sct_focus_starter = "In terms of Spec Core Team MSC focus for this week, "
+    sct_focus = sct_focus_starter + input(
+        "Please complete this sentence: " + sct_focus_starter
+    )
+
+    # Perform the substitution
+    sct_focus = msc_url_regex.sub(f"[MSC\\1](https://github.com/{github_repo}/issues/\\1)", sct_focus)
+
+    # Update the printed text with the SCT focus
+    update_text += sct_focus
+
+    # Print it out for the user to copy-paste
     print(update_text)
 
     # Generate a chart of MSC progress
