@@ -1,4 +1,5 @@
 import re
+from sys import stdin
 from datetime import datetime, timedelta
 from github import Github
 from github.Issue import Issue
@@ -6,23 +7,24 @@ from msc_chart_generator.msc_chart import MSCChart, ChartType
 
 
 TEXT = """
-# Spec
-
-Here's your weekly spec update! The heart of Matrix is the specification - and this is modified by Matrix Spec Change (MSC) proposals. Learn more about how the process works at https://matrix.org/docs/spec/proposals.
+Here's your weekly spec update! The heart of Matrix is the specification - and this is modified by Matrix Spec Change (MSC) proposals. Learn more about how the process works at https://spec.matrix.org/proposals.
 
 
 ## MSC Status
 
-**Merged MSCs:**
-{merged_mscs}
+**New MSCs:**
+{new_mscs}
 
 **MSCs in Final Comment Period:**
 {mscs_in_fcp}
 
-**New MSCs:**
-{new_mscs}
+**Accepted MSCs:**
+{accepted_mscs}
 
-## Spec Core Team
+**Closed MSCs:**
+{closed_mscs}
+
+## Spec Updates
 """
 
 
@@ -46,15 +48,28 @@ def main():
         state="open",
         labels=["proposal", "final-comment-period"],
     )
-    closed_mscs = list(r.get_issues(
-        state="closed",
-        labels=["proposal", "rejected"],
+    closed_mscs = list(set(
+        list(r.get_issues(
+            state="closed",
+            labels=["proposal", "rejected"],
+            since=one_week_ago,
+        )) +
+        list(r.get_issues(
+            state="closed",
+            labels=["proposal", "obsolete"],
+            since=one_week_ago,
+        )) +
+        list(r.get_issues(
+            state="closed",
+            labels=["proposal", "abandoned"],
+            since=one_week_ago,
+        ))
     ))
     postponed_mscs = list(r.get_issues(
         state="open",
         labels=["proposal", "finished-final-comment-period", "disposition-postpone"],
     ))
-    merged_mscs = [msc for msc in r.get_issues(
+    accepted_mscs = [msc for msc in r.get_issues(
         state="closed",
         labels=["proposal"],
         since=one_week_ago,
@@ -66,7 +81,8 @@ def main():
     # Github module into normal ol' Lists
     new_mscs = [msc for msc in new_mscs if msc.created_at > one_week_ago]
     mscs_in_fcp = [msc for msc in mscs_in_fcp]
-    merged_mscs = [msc for msc in merged_mscs if msc.closed_at > one_week_ago]
+    accepted_mscs = [msc for msc in accepted_mscs if msc.closed_at > one_week_ago]
+    closed_mscs = [msc for msc in closed_mscs if msc.closed_at > one_week_ago]
 
     # Convert MSC lists into text for the update
     if new_mscs:
@@ -87,38 +103,92 @@ def main():
     else:
         mscs_in_fcp = "* *No MSCs are in FCP.*"
 
-    if merged_mscs:
+    if accepted_mscs:
         text = ""
-        for msc in merged_mscs:
+        for msc in accepted_mscs:
             text += f"* [{msc.title}]({msc.html_url})\n"
-        merged_mscs = text.strip()
+        accepted_mscs = text.strip()
     else:
-        merged_mscs = "* *No MSCs were merged this week.*"
+        accepted_mscs = "* *No MSCs were accepted this week.*"
+
+    if closed_mscs:
+        text = ""
+        for msc in closed_mscs:
+            text += f"* [{msc.title}]({msc.html_url})\n"
+        closed_mscs = text.strip()
+    else:
+        closed_mscs = "* *No MSCs were closed/rejected this week.*"
 
     # Replace placeholders in template
     update_text = TEXT.format(
         new_mscs=new_mscs,
         mscs_in_fcp=mscs_in_fcp,
-        merged_mscs=merged_mscs,
+        accepted_mscs=accepted_mscs,
+        closed_mscs=closed_mscs,
     )
 
     # Automatically replace MSCXXXX links in the Spec Core Team focus
-    sct_focus_starter = "In terms of Spec Core Team MSC focus for this week, "
-    sct_focus = sct_focus_starter + input(
-        "Please complete this sentence: " + sct_focus_starter
-    )
+    print("Input text to replace MSC links in (press Ctrl-D on an empty line when done):\n## Spec Updates")
+    msc_descriptions = stdin.read()
 
     # Perform the substitution
-    sct_focus = msc_url_regex.sub(f"[MSC\\1](https://github.com/{github_repo}/issues/\\1)", sct_focus)
+    msc_descriptions = replace_mscs_not_in_brackets(msc_descriptions, github_repo)
 
-    # Update the printed text with the SCT focus
-    update_text += sct_focus
+    # Update the printed text with the substituted text
+    update_text += msc_descriptions
 
     # Print it out for the user to copy-paste
+    print("==============RENDERED TEXT BELOW==============")
     print(update_text)
 
     # Generate a chart of MSC progress
-    msc_chart.generate(ChartType.STACKED_AREA, "stacked_area_chart.png")
+    # TODO: Broken, GitHub is sending back 500's.
+    #msc_chart.generate(ChartType.STACKED_AREA, "stacked_area_chart.png")
+
+
+def replace_mscs_not_in_brackets(input_str: str, github_repo: str) -> str:
+    """Linkify instances of MSCXXXX if necessary, returning the new string.
+
+    Instances of MSCXXXX which are already enclosed in square brackets (used for
+    linking text in markdown) will be ignored.
+
+    This function was mostly written by GPT-4.
+
+    Args:
+        input_str: The string to linkify instances of MSCXXXX in.
+        github_repo: The GitHub repo to use for generating links, i.e.
+            "matrix-org/matrix-spec-proposals".
+
+    Returns:
+        The linkified text.
+    """
+    msc_pattern = r'MSC\d{4}'
+
+    output_str = ''
+    bracket_depth = 0
+    idx = 0
+
+    while idx < len(input_str):
+        if input_str[idx] == '[':
+            bracket_depth += 1
+            output_str += input_str[idx]
+            idx += 1
+        elif input_str[idx] == ']':
+            bracket_depth -= 1
+            output_str += input_str[idx]
+            idx += 1
+        else:
+            msc_match = re.match(msc_pattern, input_str[idx:])
+            if msc_match and bracket_depth == 0:
+                msc_number = msc_match.group(0)[3:]
+                replacement = f"[MSC{msc_number}](https://github.com/{github_repo}/issues/{msc_number})"
+                output_str += replacement
+                idx += len(msc_match.group(0))
+            else:
+                output_str += input_str[idx]
+                idx += 1
+
+    return output_str
 
 
 def get_disposition(msc: Issue) -> str:
@@ -130,6 +200,7 @@ def get_disposition(msc: Issue) -> str:
             # disposition is something like 'merge'
             if disposition in label.name:
                 return disposition
+
 
 if __name__ == '__main__':
     main()
