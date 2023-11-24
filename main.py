@@ -1,6 +1,6 @@
 import re
 from sys import stdin
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from github import Github
 from github.Issue import Issue
 from msc_chart_generator.msc_chart import MSCChart, ChartType
@@ -36,7 +36,7 @@ def main():
     msc_chart = MSCChart(pygithub=g)
     msc_url_regex = re.compile(r"MSC([\d]{3,4})", re.IGNORECASE)
 
-    one_week_ago = datetime.now() - timedelta(days=7)
+    one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
     # Get MSC Issues
     new_mscs = r.get_issues(
