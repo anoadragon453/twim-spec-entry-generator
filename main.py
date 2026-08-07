@@ -72,7 +72,7 @@ def main():
             stale_if_error=True,
         )
 
-    github_repo = "matrix-org/matrix-doc"
+    github_repo = "matrix-org/matrix-spec-proposals"
     github_token = os.environ.get("GITHUB_TOKEN", "")
     g = Github(auth=Auth.Token(github_token)) if github_token else Github()
     r = g.get_repo(github_repo)
