@@ -1,7 +1,9 @@
+import argparse
+import os
 import re
 from sys import stdin
-from datetime import datetime, timedelta
-from github import Github
+from datetime import datetime, timedelta, timezone
+from github import Auth, Github
 from github.Issue import Issue
 from msc_chart_generator.msc_chart import MSCChart, ChartType
 
@@ -29,14 +31,55 @@ Here's your weekly spec update! The heart of Matrix is the specification - and t
 
 
 def main():
-    github_repo = "matrix-org/matrix-doc"
-    github_token = ""
-    g = Github(github_token)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--chart",
+        action="store_true",
+        help="Generate a stacked area chart of MSC progress (stacked_area_chart.png).",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Don't cache GitHub API responses for this run.",
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Delete the local GitHub API response cache before running.",
+    )
+    args = parser.parse_args()
+
+    cache_path = "github_api_cache.sqlite"
+    if args.clear_cache:
+        try:
+            os.remove(cache_path)
+        except FileNotFoundError:
+            pass
+
+    # Cache GitHub API responses so re-running the script doesn't re-hit
+    # rate limits. cache_control honors GitHub's own Cache-Control/ETag
+    # headers, and once a cached entry expires, requests-cache revalidates
+    # it with If-None-Match automatically; a GitHub 304 response from that
+    # doesn't count against the rate limit, so this stays cheap even when
+    # stale. stale_if_error serves the stale cache instead of failing
+    # outright if the API is unreachable or rate-limited.
+    if not args.no_cache:
+        import requests_cache
+        requests_cache.install_cache(
+            "github_api_cache",
+            cache_control=True,
+            expire_after=1800,
+            stale_if_error=True,
+        )
+
+    github_repo = "matrix-org/matrix-spec-proposals"
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    g = Github(auth=Auth.Token(github_token)) if github_token else Github()
     r = g.get_repo(github_repo)
     msc_chart = MSCChart(pygithub=g)
     msc_url_regex = re.compile(r"MSC([\d]{3,4})", re.IGNORECASE)
 
-    one_week_ago = datetime.now() - timedelta(days=7)
+    one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
     # Get MSC Issues
     new_mscs = r.get_issues(
@@ -142,8 +185,8 @@ def main():
     print(update_text)
 
     # Generate a chart of MSC progress
-    # TODO: Broken, GitHub is sending back 500's.
-    #msc_chart.generate(ChartType.STACKED_AREA, "stacked_area_chart.png")
+    if args.chart:
+        msc_chart.generate(ChartType.STACKED_AREA, "stacked_area_chart.png")
 
 
 def replace_mscs_not_in_brackets(input_str: str, github_repo: str) -> str:
