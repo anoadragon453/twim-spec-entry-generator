@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 from sys import stdin
@@ -30,16 +31,39 @@ Here's your weekly spec update! The heart of Matrix is the specification - and t
 
 
 def main():
-    # Cache GitHub API responses for local dev to avoid re-hitting rate
-    # limits on every run. Off by default since MSC state changes over time
-    # and production (weekly cron) runs should always see fresh data.
-    # cache_control honors GitHub's own Cache-Control/ETag headers, and
-    # once a cached entry expires, requests-cache revalidates it with
-    # If-None-Match automatically; a GitHub 304 response from that doesn't
-    # count against the rate limit, so this stays cheap even when stale.
-    # stale_if_error serves the stale cache instead of failing outright if
-    # the API is unreachable or rate-limited.
-    if os.environ.get("USE_API_CACHE"):
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--chart",
+        action="store_true",
+        help="Generate a stacked area chart of MSC progress (stacked_area_chart.png).",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Don't cache GitHub API responses for this run.",
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Delete the local GitHub API response cache before running.",
+    )
+    args = parser.parse_args()
+
+    cache_path = "github_api_cache.sqlite"
+    if args.clear_cache:
+        try:
+            os.remove(cache_path)
+        except FileNotFoundError:
+            pass
+
+    # Cache GitHub API responses so re-running the script doesn't re-hit
+    # rate limits. cache_control honors GitHub's own Cache-Control/ETag
+    # headers, and once a cached entry expires, requests-cache revalidates
+    # it with If-None-Match automatically; a GitHub 304 response from that
+    # doesn't count against the rate limit, so this stays cheap even when
+    # stale. stale_if_error serves the stale cache instead of failing
+    # outright if the API is unreachable or rate-limited.
+    if not args.no_cache:
         import requests_cache
         requests_cache.install_cache(
             "github_api_cache",
@@ -161,8 +185,8 @@ def main():
     print(update_text)
 
     # Generate a chart of MSC progress
-    # TODO: Broken, GitHub is sending back 500's.
-    #msc_chart.generate(ChartType.STACKED_AREA, "stacked_area_chart.png")
+    if args.chart:
+        msc_chart.generate(ChartType.STACKED_AREA, "stacked_area_chart.png")
 
 
 def replace_mscs_not_in_brackets(input_str: str, github_repo: str) -> str:
