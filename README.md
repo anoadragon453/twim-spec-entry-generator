@@ -30,3 +30,17 @@ npm install -g electron@6.1.4 orca
 ```sh
 python ./main.py
 ```
+
+## Container
+
+Build:
+
+```sh
+docker build -t anoadragon453/twim-spec-entry-generator:latest .
+```
+
+Run:
+
+```sh
+docker run -it --rm -e GITHUB_TOKEN=$GITHUB_TOKEN anoadragon453/twim-spec-entry-generator
+```

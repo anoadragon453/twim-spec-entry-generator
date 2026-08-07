@@ -1,6 +1,7 @@
 import re
+import os
 from sys import stdin
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from github import Github
 from github.Issue import Issue
 from msc_chart_generator.msc_chart import MSCChart, ChartType
@@ -30,13 +31,13 @@ Here's your weekly spec update! The heart of Matrix is the specification - and t
 
 def main():
     github_repo = "matrix-org/matrix-doc"
-    github_token = ""
+    github_token = os.environ["GITHUB_TOKEN"]
     g = Github(github_token)
     r = g.get_repo(github_repo)
     msc_chart = MSCChart(pygithub=g)
     msc_url_regex = re.compile(r"MSC([\d]{3,4})", re.IGNORECASE)
 
-    one_week_ago = datetime.now() - timedelta(days=7)
+    one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
     # Get MSC Issues
     new_mscs = r.get_issues(
