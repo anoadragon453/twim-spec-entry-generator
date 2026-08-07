@@ -1,3 +1,4 @@
+import os
 import re
 from sys import stdin
 from datetime import datetime, timedelta, timezone
@@ -29,6 +30,24 @@ Here's your weekly spec update! The heart of Matrix is the specification - and t
 
 
 def main():
+    # Cache GitHub API responses for local dev to avoid re-hitting rate
+    # limits on every run. Off by default since MSC state changes over time
+    # and production (weekly cron) runs should always see fresh data.
+    # cache_control honors GitHub's own Cache-Control/ETag headers, and
+    # once a cached entry expires, requests-cache revalidates it with
+    # If-None-Match automatically; a GitHub 304 response from that doesn't
+    # count against the rate limit, so this stays cheap even when stale.
+    # stale_if_error serves the stale cache instead of failing outright if
+    # the API is unreachable or rate-limited.
+    if os.environ.get("USE_API_CACHE"):
+        import requests_cache
+        requests_cache.install_cache(
+            "github_api_cache",
+            cache_control=True,
+            expire_after=1800,
+            stale_if_error=True,
+        )
+
     github_repo = "matrix-org/matrix-doc"
     github_token = ""
     g = Github(github_token)
