@@ -2,7 +2,7 @@ import os
 import re
 from sys import stdin
 from datetime import datetime, timedelta, timezone
-from github import Github
+from github import Auth, Github
 from github.Issue import Issue
 from msc_chart_generator.msc_chart import MSCChart, ChartType
 
@@ -49,8 +49,8 @@ def main():
         )
 
     github_repo = "matrix-org/matrix-doc"
-    github_token = ""
-    g = Github(github_token)
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    g = Github(auth=Auth.Token(github_token)) if github_token else Github()
     r = g.get_repo(github_repo)
     msc_chart = MSCChart(pygithub=g)
     msc_url_regex = re.compile(r"MSC([\d]{3,4})", re.IGNORECASE)
